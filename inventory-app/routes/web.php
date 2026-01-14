@@ -36,6 +36,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/inventory', [InventoryLogController::class, 'all'])
         ->name('inventory.all');
 
+    Route::get('/inventory/{item}/edit', [InventoryLogController::class, 'edit'])
+        ->name('inventory.edit');
+
+    Route::post('/inventory/deduct', [InventoryLogController::class, 'deduct'])
+        ->name('inventory.deduct');
+
     Route::get('/inventory/{item}', [InventoryLogController::class, 'index'])
         ->name('inventory.index');
 });

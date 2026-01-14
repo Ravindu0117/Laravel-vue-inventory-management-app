@@ -9,40 +9,59 @@ use Inertia\Inertia;
 
 class InventoryLogController extends Controller
 {
-    // Show item history
+    /**
+     * Show inventory history for ONE item
+     * URL: /inventory/{item}
+     */
     public function index(Item $item)
     {
-        $logs = InventoryLog::where('item_id', $item->id)
-            ->latest()
-            ->get();
+        $item->load('logs');
 
         return Inertia::render('InventoryLogs/Index', [
             'item' => $item,
-            'logs' => $logs
+            'logs' => $item->logs,
         ]);
     }
 
-        public function all(Request $request)
+    /**
+     * Show ALL inventory items + logs (with search)
+     * URL: /inventory
+     */
+    public function all(Request $request)
     {
         $search = $request->q;
 
-        // Get all items with their logs
         $items = Item::with('logs')
-        ->when($search, function ($query, $search) {
-            $query->where('name', 'like', "%{$search}%");
-        })
-        ->get();
+            ->when($search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%");
+            })
+            ->get();
 
         return Inertia::render('InventoryLogs/All', [
             'items' => $items,
             'filters' => [
-            'q' => $search,
+                'q' => $search,
             ],
         ]);
     }
 
+    /**
+     * Edit / Manage inventory for ONE item
+     * URL: /inventory/{item}/edit
+     */
+    public function edit(Item $item)
+    {
+        $item->load('logs');
 
-    // Deduct or add stock
+        return Inertia::render('InventoryLogs/Edit', [
+            'item' => $item,
+        ]);
+    }
+
+    /**
+     * ADD or DEDUCT stock (used by forms)
+     * URL: POST /inventory
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -56,8 +75,9 @@ class InventoryLogController extends Controller
 
         if ($request->change_type === 'deduction') {
             if ($item->quantity < $request->quantity) {
-                return redirect()->back()
-                    ->withErrors(['quantity' => 'Not enough stock']);
+                return redirect()->back()->withErrors([
+                    'quantity' => 'Not enough stock available',
+                ]);
             }
 
             $item->quantity -= $request->quantity;
@@ -75,5 +95,37 @@ class InventoryLogController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Inventory updated successfully');
+    }
+
+    /**
+     * DEDUCT ONLY (clean endpoint for edit page)
+     * URL: POST /inventory/deduct
+     */
+    public function deduct(Request $request)
+    {
+        $request->validate([
+            'item_id' => 'required|exists:items,id',
+            'quantity' => 'required|numeric|min:1',
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $item = Item::findOrFail($request->item_id);
+
+        if ($item->quantity < $request->quantity) {
+            return back()->withErrors([
+                'quantity' => 'Not enough stock available',
+            ]);
+        }
+
+        $item->decrement('quantity', $request->quantity);
+
+        InventoryLog::create([
+            'item_id' => $item->id,
+            'change_type' => 'deduction',
+            'quantity' => $request->quantity,
+            'description' => $request->description ?? 'Stock deducted',
+        ]);
+
+        return redirect()->back()->with('success', 'Stock deducted successfully');
     }
 }
