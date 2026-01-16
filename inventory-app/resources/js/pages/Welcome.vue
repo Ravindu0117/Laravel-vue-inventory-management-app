@@ -74,9 +74,9 @@ withDefaults(
           <Link
             v-if="$page.props.auth.user"
             href="/inventory"
-            class="px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-slate-800"
+            class="px-6 py-3 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-slate-700 transition"
             >
-            Inventory
+            Inventory List
           </Link>
 
           <template v-else>
